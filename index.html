@@ -30,7 +30,6 @@
         .hidden { display: none; }
         .success { text-align: center; color: var(--primary); padding: 20px; }
 
-        /* STYLE DU CHAT */
         #chat-circle { position: fixed; bottom: 20px; right: 20px; background: var(--blue); color: white; width: 55px; height: 55px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 1000; }
         #chat-box { display: none; position: fixed; bottom: 85px; right: 20px; width: 300px; background: white; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 1000; overflow: hidden; }
         .chat-header { background: var(--blue); color: white; padding: 12px; font-weight: bold; font-size: 14px; }
@@ -87,7 +86,7 @@
         <h3>Commande Reçue !</h3>
         <p>Votre paiement est en cours de vérification par notre robot.</p>
         <p>ID : <strong id="final-id"></strong></p>
-        <button class="btn" onclick="window.location.reload()" style="background:#0d6efd">Nouvelle commande</button>
+        <button class="btn" onclick="sessionStorage.removeItem('active_order_id'); window.location.reload();" style="background:#0d6efd">Nouvelle commande</button>
     </div>
 </div>
 
@@ -102,12 +101,15 @@
 </div>
 
 <script>
-    // ⚠️ METTEZ L'URL DE VOTRE DÉPLOIEMENT GOOGLE ICI
     const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbyCvuy-WiLMlAkBb7k6YyPVMk4lQhGGke05heSWSw--twKE2L-oVSOs884g3jn6lt6m/exec"; 
 
-    const orderId = "#CMD-" + Math.floor(1000 + Math.random() * 9000);
+    // --- GESTION DE L'ID PERSISTANT ---
+    let orderId = sessionStorage.getItem('active_order_id');
+    if (!orderId) {
+        orderId = "#CMD-" + Math.floor(1000 + Math.random() * 9000);
+        sessionStorage.setItem('active_order_id', orderId);
+    }
     document.getElementById('live-order-id').innerText = orderId;
-    localStorage.setItem('current_oid', orderId);
 
     const params = new URLSearchParams(window.location.search);
     const nom = params.get('nom') || "Service";
@@ -135,7 +137,6 @@
         alert("ID Copié : " + orderId);
     }
 
-    // --- LOGIQUE D'ENVOI ---
     document.getElementById('orderForm').onsubmit = async (e) => {
         e.preventDefault();
         const btn = document.getElementById('submitBtn');
@@ -163,7 +164,6 @@
             fileData: fileData
         };
 
-        // On utilise l'URL du script Google
         fetch(GOOGLE_URL, {
             method: 'POST',
             mode: 'no-cors',
@@ -172,10 +172,13 @@
             document.getElementById('form-container').classList.add('hidden');
             document.getElementById('final-id').innerText = orderId;
             document.getElementById('success-msg').classList.remove('hidden');
-        }).catch(() => alert("Erreur de connexion API"));
+            // Optionnel: Ne pas supprimer l'ID ici pour qu'il reste sur l'écran de succès
+        }).catch(() => {
+            alert("Erreur de connexion API");
+            btn.disabled = false;
+        });
     };
 
-    // --- LOGIQUE DU CHAT ---
     function toggleChat() {
         const cb = document.getElementById('chat-box');
         cb.style.display = (cb.style.display === 'block') ? 'none' : 'block';
@@ -194,11 +197,8 @@
         const txt = inp.value.trim();
         if(!txt) return;
         addChat(txt, true);
-        
-        // Envoi au mail via Google Script
         const p = { chat: txt, orderId: orderId };
         fetch(GOOGLE_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(p) });
-        
         inp.value = '';
     }
 </script>
